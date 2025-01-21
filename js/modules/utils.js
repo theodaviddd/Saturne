@@ -64,53 +64,79 @@ window.saturne.utils.event = function() {
 };
 
 /**
- * Drag ana drop on move-line action
+ * Drag and drop on move-line action
  *
  * @memberof Saturne_Utils
  *
  * @since   1.0.0
- * @version 1.0.0
+ * @version 1.1.0
  *
  * @return {void}
  */
-window.saturne.utils.draganddrop = function() {
+window.saturne.utils.draganddrop = function () {
   $(this).css('cursor', 'pointer');
 
-  $('#tablelines tbody').sortable();
   $('#tablelines tbody').sortable({
     handle: '.move-line',
-    connectWith:'#tablelines tbody .line-row',
-    tolerance:'intersect',
-    over:function(){
-      $(this).css('cursor', 'grabbing');
-    },
-    stop: function() {
+    items: '> .line-row',
+    tolerance: 'intersect',
+    stop: function (event, ui) {
       $(this).css('cursor', 'default');
-      let token = $('.fiche').find('input[name="token"]').val();
 
-      let separator = '&'
-      if (document.URL.match(/action=/)) {
-        document.URL = document.URL.split(/\?/)[0]
-        separator = '?'
+      const movedRow = ui.item;
+      const movedRowId = movedRow.attr('id');
+
+      if (movedRow.hasClass('question-group')) { 
+        const groupId = movedRowId.replace('group-', '');
+        const questions = $(`.group-question-${groupId}`);
+
+        questions.each(function () {
+          $(this).insertAfter(movedRow);
+        });
       }
+
       let lineOrder = [];
-      $('.line-row').each(function(  ) {
+      $('.line-row').each(function () {
         lineOrder.push($(this).attr('id'));
       });
+
+      const token = $('.fiche').find('input[name="token"]').val();
+
+      let separator = '&';
+      if (document.URL.match(/action=/)) {
+        document.URL = document.URL.split(/\?/)[0];
+        separator = '?';
+      }
+
       $.ajax({
         url: document.URL + separator + "action=moveLine&token=" + token,
         type: "POST",
         data: JSON.stringify({
-          order: lineOrder
+          order: lineOrder,
         }),
         processData: false,
-        contentType: false,
-        success: function () {},
-        error: function() {}
+        contentType: 'application/json',
+        success: function () {
+          console.log('Order successfully updated');
+        },
+        error: function () {
+          console.error('Failed to update order');
+        },
       });
-    }
+    },
+    receive: function (event, ui) {
+      const movedRow = ui.item;
+      if (movedRow.hasClass('group-question')) {
+        const targetGroup = ui.placeholder.closest('.question-group');
+        if (targetGroup.length) {
+          $(this).sortable('cancel');
+          alert('Vous ne pouvez pas déplacer une question dans un groupe.');
+        }
+      }
+    },
   });
 };
+
 
 /**
  * Reload page for ajax action on specific action
